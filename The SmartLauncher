@@ -1,0 +1,108 @@
+// File: MainActivity.kt package com.smartos
+
+import android.os.Bundle import androidx.activity.ComponentActivity import androidx.activity.compose.setContent import com.smartos.launcher.SmartLauncher import com.smartos.ui.theme.SmartOSTheme
+
+class MainActivity : ComponentActivity() { override fun onCreate(savedInstanceState: Bundle?) { super.onCreate(savedInstanceState) setContent { SmartOSTheme { SmartLauncher() } } } }
+
+// File: AppInfo.kt package com.smartos.launcher
+
+import android.graphics.drawable.Drawable
+
+data class AppInfo( val name: String, val packageName: String, val icon: Drawable )
+
+// File: SmartLauncher.kt package com.smartos.launcher
+
+import android.content.Context import android.content.Intent import android.content.pm.PackageManager import androidx.compose.foundation.Image import androidx.compose.foundation.clickable import androidx.compose.foundation.layout.* import androidx.compose.foundation.lazy.grid.GridCells import androidx.compose.foundation.lazy.grid.LazyVerticalGrid import androidx.compose.material.Text import androidx.compose.runtime.* import androidx.compose.ui.Alignment import androidx.compose.ui.Modifier import androidx.compose.ui.graphics.asImageBitmap import androidx.compose.ui.platform.LocalContext import androidx.compose.ui.unit.dp import androidx.compose.ui.unit.sp import androidx.core.graphics.drawable.toBitmap
+
+@Composable fun SmartLauncher() { val context = LocalContext.current val apps by remember { mutableStateOf(getInstalledApps(context)) }
+
+LazyVerticalGrid(
+    columns = GridCells.Fixed(4),
+    contentPadding = PaddingValues(12.dp),
+    modifier = Modifier.fillMaxSize()
+) {
+    items(apps.size) { index ->
+        val app = apps[index]
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier
+                .padding(8.dp)
+                .clickable {
+                    val intent = context.packageManager.getLaunchIntentForPackage(app.packageName)
+                    intent?.let { context.startActivity(it) }
+                }
+        ) {
+            Image(
+                bitmap = app.icon.toBitmap(96, 96).asImageBitmap(),
+                contentDescription = app.name,
+                modifier = Modifier.size(64.dp)
+            )
+            Text(app.name, fontSize = 12.sp)
+        }
+    }
+}
+
+}
+
+fun getInstalledApps(context: Context): List<AppInfo> { val pm = context.packageManager val apps = pm.getInstalledApplications(PackageManager.GET_META_DATA)
+
+return apps.filter {
+    pm.getLaunchIntentForPackage(it.packageName) != null
+}.map {
+    AppInfo(
+        name = it.loadLabel(pm).toString(),
+        packageName = it.packageName,
+        icon = it.loadIcon(pm)
+    )
+}.sortedBy { it.name.lowercase() }
+
+}
+
+// AndroidManifest.xml <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+package="com.smartos">
+
+<uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
+
+<application
+    android:allowBackup="true"
+    android:label="SmartOS"
+    android:theme="@style/Theme.SmartOS">
+    <activity android:name=".MainActivity"
+        android:exported="true">
+        <intent-filter>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent-filter>
+    </activity>
+</application>
+
+</manifest>// build.gradle (App level) plugins { id 'com.android.application' id 'org.jetbrains.kotlin.android' }
+
+android { namespace 'com.smartos' compileSdk 34
+
+defaultConfig {
+    applicationId "com.smartos"
+    minSdk 24
+    targetSdk 34
+    versionCode 1
+    versionName "1.0"
+}
+
+buildFeatures {
+    compose true
+}
+
+composeOptions {
+    kotlinCompilerExtensionVersion '1.6.0'
+}
+
+kotlinOptions {
+    jvmTarget = '17'
+}
+
+}
+
+dependencies { implementation "androidx.core:core-ktx:1.12.0" implementation "androidx.activity:activity-compose:1.8.0" implementation "androidx.compose.ui:ui:1.6.0" implementation "androidx.compose.material:material:1.6.0" implementation "androidx.compose.ui:ui-tooling-preview:1.6.0" implementation "androidx.lifecycle:lifecycle-runtime-ktx:2.6.2" implementation "androidx.navigation:navigation-compose:2.7.6" }
+
+// build.gradle (Project level) buildscript { ext { compose_ui_version = '1.6.0' } repositories { google() mavenCentral() } dependencies { classpath 'com.android.tools.build:gradle:8.2.0' classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:1.9.21" } }
+
